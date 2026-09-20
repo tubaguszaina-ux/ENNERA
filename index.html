@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#151914">
+  <title>Eco Watt</title>
+
+  <!-- PWA: manifest & icon aplikasi -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Eco Watt">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============================================================
+     PAGE 1 — LOGIN
+     ============================================================ -->
+<section class="screen active" id="screenLogin">
+  <div class="login-wrap">
+    <div class="login-brand">
+      <div class="login-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#d99a38" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5Z"/>
+        </svg>
+      </div>
+      <h1>ECO<span>·</span>WATT</h1>
+      <p>Smart socket offline</p>
+    </div>
+
+    <div class="login-card">
+      <h2>Masuk</h2>
+      <p>Masukkan nama Anda, lalu hubungkan ke stopkontak Eco Watt melalui Bluetooth.</p>
+
+      <div class="field">
+        <label for="loginName">Nama pengguna</label>
+        <input id="loginName" maxlength="24" autocomplete="name"
+               placeholder="Contoh: Bahri" inputmode="text">
+        <p class="field-error" id="loginError"></p>
+      </div>
+
+      <div class="login-status">
+        <span class="status-dot" id="loginDot"></span>
+        <span id="loginStatusText">Bluetooth belum terhubung</span>
+      </div>
+
+      <button class="login-btn" id="loginConnectBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#17130c" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m7 7 10 10-5 5V2l5 5L7 17"/>
+        </svg>
+        Hubungkan ke Perangkat
+      </button>
+
+      <div class="unsupported" id="unsupportedNotice" style="margin-top:14px;margin-bottom:0">
+        Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome atau Edge
+        (Android/desktop), atau aplikasi Eco Watt versi APK. Safari di iPhone/iPad belum didukung.
+      </div>
+
+      <p class="login-hint">
+        Hanya satu HP yang dapat mengontrol Eco Watt pada satu waktu.
+        Nama pengguna disimpan di HP ini saja.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     PAGE 2 — APLIKASI (4 TAB)
+     ============================================================ -->
+<section class="screen" id="screenApp">
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>ECO<span>·</span>WATT</h1>
+        <p id="greeting">Halo, pengguna</p>
+      </div>
+      <div class="connection">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusMini" style="font-size:12px;color:var(--muted)">Terputus</span>
+        </div>
+        <button class="connect-btn" id="connectBtn">Hubungkan</button>
+      </div>
+    </header>
+
+    <!-- ---------- TAB 1: KONTROL RELAY + KONTROL CEPAT ---------- -->
+    <div class="tab-panel active" id="tabControl" role="tabpanel" aria-labelledby="navControl">
+      <section class="hero">
+        <div class="hero-row">
+          <div>
+            <p class="eyebrow">Status perangkat</p>
+            <p class="connection-text" id="connectionText">Belum terhubung</p>
+            <p class="device-info" id="deviceInfo">Perangkat: Eco_Watt</p>
+          </div>
+          <span class="security-badge">1 USER • BLE • OFFLINE</span>
+        </div>
+        <div class="hero-note" id="safetyNote"></div>
+        <div class="countdown-alert" id="disconnectCountdown"></div>
+      </section>
+
+      <div class="section-title">
+        <h2>Kontrol relay</h2>
+        <span id="relaySummary">0 dari 4 aktif</span>
+      </div>
+      <!-- Kartu relay dibuat otomatis oleh app.js dari RELAY_COUNT -->
+      <section class="relay-grid" id="relayGrid"></section>
+
+      <div class="section-title"><h2>Kontrol cepat</h2></div>
+      <section class="quick-actions">
+        <button class="action-btn on" id="allOnBtn" disabled>Nyalakan Semua</button>
+        <button class="action-btn off" id="allOffBtn" disabled>Matikan Semua</button>
+      </section>
+    </div>
+
+    <!-- ---------- TAB 2: COUNTDOWN TIMER + RIWAYAT ---------- -->
+    <div class="tab-panel" id="tabTimer" role="tabpanel" aria-labelledby="navTimer">
+      <div class="section-title">
+        <h2>Countdown timer</h2>
+        <span>Berjalan di ESP32</span>
+      </div>
+      <!-- Kartu timer dibuat otomatis oleh app.js -->
+      <section class="timer-grid" id="timerGrid"></section>
+
+      <div class="section-title">
+        <h2>Riwayat aktivitas</h2>
+        <span>Lokal</span>
+      </div>
+      <section class="history">
+        <div class="history-head">
+          <strong>Aktivitas terbaru</strong>
+          <button class="clear-btn" id="clearHistoryBtn">Hapus riwayat</button>
+        </div>
+        <ul class="history-list" id="historyList"></ul>
+      </section>
+    </div>
+
+    <!-- ---------- TAB 3: PENGATURAN LOKAL ---------- -->
+    <div class="tab-panel" id="tabSettings" role="tabpanel" aria-labelledby="navSettings">
+      <div class="section-title">
+        <h2>Pengaturan lokal</h2>
+        <span>Tersimpan di HP</span>
+      </div>
+
+      <details open>
+        <summary>Pengaturan perangkat dan nama</summary>
+        <div class="settings-body">
+          <div class="settings-block">
+            <h3>Perilaku saat Bluetooth tersambung</h3>
+            <div class="field">
+              <label for="connectModeSelect">Mode koneksi</label>
+              <select class="settings-select" id="connectModeSelect">
+                <option value="ALL_ON">Semua relay langsung ON</option>
+                <option value="RESTORE_LAST">Kembalikan kondisi terakhir</option>
+                <option value="STAY_OFF">Tetap OFF sampai dikontrol manual</option>
+              </select>
+            </div>
+            <p class="settings-help">
+              Saat ESP32 baru menyala, seluruh relay tetap OFF untuk keamanan.
+              Mode di atas baru diterapkan ketika HP tersambung.
+            </p>
+          </div>
+
+          <div class="settings-block">
+            <h3>Auto-OFF ketika Bluetooth terputus</h3>
+            <div class="field">
+              <label for="autoOffSelect">Waktu tunggu</label>
+              <select class="settings-select" id="autoOffSelect">
+                <option value="3">3 detik</option>
+                <option value="5">5 detik</option>
+                <option value="10">10 detik</option>
+                <option value="30">30 detik</option>
+              </select>
+            </div>
+            <button class="save-btn" id="saveDeviceSettingsBtn" disabled>Simpan ke ESP32</button>
+          </div>
+
+          <div class="settings-block">
+            <h3>Nama stopkontak</h3>
+            <!-- Input nama dibuat otomatis oleh app.js -->
+            <div id="nameFields"></div>
+            <button class="save-btn" id="saveNamesBtn">Simpan Nama di HP</button>
+          </div>
+
+          <div class="settings-block">
+            <h3>Keamanan koneksi</h3>
+            <div class="feature-list">
+              <div class="feature-row"><span>Batas pengguna</span><strong>Satu HP</strong></div>
+              <div class="feature-row"><span>Data aplikasi</span><strong>Offline</strong></div>
+              <div class="feature-row"><span>Status awal setelah boot</span><strong>Semua OFF</strong></div>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ---------- TAB 4: INFORMASI USER + LOGOUT ---------- -->
+    <div class="tab-panel" id="tabUser" role="tabpanel" aria-labelledby="navUser">
+      <div class="section-title">
+        <h2>Informasi pengguna</h2>
+        <span>Sesi ini</span>
+      </div>
+
+      <div class="profile-card">
+        <div class="avatar" id="avatar">?</div>
+        <div class="profile-meta">
+          <strong id="profileName">Pengguna</strong>
+          <span id="profileSince">Masuk sejak —</span>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>Detail sesi</h2></div>
+      <div class="feature-list">
+        <div class="feature-row"><span>Status Bluetooth</span><strong id="userConnState">Terputus</strong></div>
+        <div class="feature-row"><span>Perangkat</span><strong id="userDevice">—</strong></div>
+        <div class="feature-row"><span>Relay aktif</span><strong id="userRelayCount">0 dari 4</strong></div>
+        <div class="feature-row"><span>Mode koneksi</span><strong id="userMode">—</strong></div>
+        <div class="feature-row"><span>Auto-OFF</span><strong id="userAutoOff">—</strong></div>
+        <div class="feature-row"><span>Jumlah riwayat</span><strong id="userHistoryCount">0</strong></div>
+      </div>
+
+      <button class="logout-btn" id="logoutBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>
+        </svg>
+        Keluar
+      </button>
+      <p class="settings-help">
+        Keluar akan memutus Bluetooth dan mengembalikan Anda ke halaman masuk.
+        Nama relay dan riwayat tetap tersimpan di HP.
+      </p>
+    </div>
+  </main>
+
+  <!-- ---------- NAVIGASI BAWAH ---------- -->
+  <nav class="tabbar" role="tablist" aria-label="Navigasi aplikasi">
+    <button class="tab-btn active" id="navControl" data-tab="tabControl" role="tab" aria-controls="tabControl" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="3"/>
+        <circle cx="8.5" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/>
+      </svg>
+      Kontrol
+    </button>
+    <button class="tab-btn" id="navTimer" data-tab="tabTimer" role="tab" aria-controls="tabTimer" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>
+      </svg>
+      Timer
+      <span class="tab-dot" id="timerDot"></span>
+    </button>
+    <button class="tab-btn" id="navSettings" data-tab="tabSettings" role="tab" aria-controls="tabSettings" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V1a2 2 0 1 1 4 0v.1A1.7 1.7 0 0 0 17 2.6a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H23a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"
+              transform="translate(0.6 0.6) scale(0.94)"/>
+      </svg>
+      Pengaturan
+    </button>
+    <button class="tab-btn" id="navUser" data-tab="tabUser" role="tab" aria-controls="tabUser" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>
+      </svg>
+      Akun
+    </button>
+  </nav>
+</section>
+
+<dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmMessage">
+  <p id="confirmMessage"></p>
+  <div class="confirm-actions">
+    <button type="button" class="timer-btn" id="confirmCancel">Batal</button>
+    <button type="button" class="timer-btn cancel" id="confirmOk">Ya</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
