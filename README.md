@@ -1,4 +1,4 @@
-# NEO VOlt
+# NEO Volt
 
 PWA untuk mengontrol stopkontak pintar Neo Volt (ESP32, 4 relay) lewat Bluetooth LE — tanpa internet.
 
