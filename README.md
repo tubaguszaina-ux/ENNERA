@@ -1,6 +1,6 @@
-# Eco Watt
+# NEO VOlt
 
-PWA untuk mengontrol stopkontak pintar Eco Watt (ESP32, 4 relay) lewat Bluetooth LE — tanpa internet.
+PWA untuk mengontrol stopkontak pintar Neo Volt (ESP32, 4 relay) lewat Bluetooth LE — tanpa internet.
 
 ## Menjalankan
 
@@ -64,6 +64,33 @@ Native memanggil balik `window.EcoWattApp`: `onConnected(nama)`, `onDisconnected
 
 - `write()` dianggap berhasil bila tidak melempar exception; lapor kegagalan tulis asinkron lewat `onError`.
 - Service worker tidak berjalan dari `file:///android_asset/`; tidak masalah, file sudah lokal.
+
+## Palet warna
+
+| Token | Nilai | Dipakai untuk |
+|---|---|---|
+| `--blue` | `#003F88` | tab aktif, kartu relay menyala, logo |
+| `--accent` / `--on` | `#FFD500` | tombol utama, status menyala/terhubung, fokus |
+| `--bg` `--panel` `--well` | turunan gelap hue 212° | latar, panel, input |
+| `--red` | `#E0625D` | mati, terputus, keluar, error |
+
+Semua warna ada di blok `:root` paling atas `styles.css`. Status "menyala" memakai `--on`; ubah satu baris itu
+bila ingin warna status yang berbeda dari aksen. `npm test` memeriksa kontras (WCAG AA) semua pasangan teks/latar.
+
+## Ikon aplikasi
+
+Semua ikon (`icons/*.png`, `icons/favicon.ico`) dibuat dari desain logo bolt yang sama dengan logo di layar login.
+Untuk mengubah warna/proporsi, edit `tools/generate-icons.py` lalu jalankan:
+
+```bash
+pip install cairosvg pillow
+python3 tools/generate-icons.py
+```
+
+Setelah mengganti ikon, naikkan `CACHE_NAME` di `service-worker.js` (ikon dilayani cache-first, jadi tanpa itu
+HP yang sudah pernah membuka aplikasi tetap menampilkan ikon lama). Ikon di layar utama HP hasil "Install/Add to Home
+screen" baru berganti setelah shortcut dihapus dan dipasang ulang. Untuk versi APK, ikon diambil dari resource proyek
+Android (`mipmap-*`); gunakan `icon-maskable-512.png` sebagai sumber ikon adaptif.
 
 ## Keamanan
 

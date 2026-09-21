@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="com">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#151914">
-  <title>Eco Watt</title>
+  <meta name="theme-color" content="#06142a">
+  <title>Neo Volt</title>
 
   <!-- PWA: manifest & icon aplikasi -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -14,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Eco Watt">
+  <meta name="apple-mobile-web-app-title" content="Neo Volt">
 
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -27,23 +27,23 @@
   <div class="login-wrap">
     <div class="login-brand">
       <div class="login-logo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#d99a38" stroke-width="1.7"
+        <svg viewBox="0 0 24 24" fill="none" stroke="#FFD500" stroke-width="1.7"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5Z"/>
         </svg>
       </div>
-      <h1>ECO<span>·</span>WATT</h1>
+      <h1>NEO<span>·</span>VOLT</h1>
       <p>Smart socket offline</p>
     </div>
 
     <div class="login-card">
       <h2>Masuk</h2>
-      <p>Masukkan nama Anda, lalu hubungkan ke stopkontak Eco Watt melalui Bluetooth.</p>
+      <p>Hubungkan ke stopkontak Neo Volt melalui Bluetooth.</p>
 
       <div class="field">
         <label for="loginName">Nama pengguna</label>
         <input id="loginName" maxlength="24" autocomplete="name"
-               placeholder="Contoh: Bahri" inputmode="text">
+               placeholder="Masukan nama" inputmode="text">
         <p class="field-error" id="loginError"></p>
       </div>
 
@@ -53,7 +53,7 @@
       </div>
 
       <button class="login-btn" id="loginConnectBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#17130c" stroke-width="2"
+        <svg viewBox="0 0 24 24" fill="none" stroke="#06162e" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m7 7 10 10-5 5V2l5 5L7 17"/>
         </svg>
@@ -62,12 +62,12 @@
 
       <div class="unsupported" id="unsupportedNotice" style="margin-top:14px;margin-bottom:0">
         Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome atau Edge
-        (Android/desktop), atau aplikasi Eco Watt versi APK. Safari di iPhone/iPad belum didukung.
+        (Android/desktop), atau aplikasi Neo Volt versi APK. Safari di iPhone/iPad belum didukung.
       </div>
 
       <p class="login-hint">
-        Hanya satu HP yang dapat mengontrol Eco Watt pada satu waktu.
-        Nama pengguna disimpan di HP ini saja.
+        Hanya satu Device yang dapat mengontrol Neo Volt pada satu waktu.
+        Nama pengguna disimpan di HP ini.
       </p>
     </div>
   </div>
@@ -80,7 +80,7 @@
   <main class="app">
     <header class="topbar">
       <div class="brand">
-        <h1>ECO<span>·</span>WATT</h1>
+        <h1>NEO<span>·</span>VOLT</h1>
         <p id="greeting">Halo, pengguna</p>
       </div>
       <div class="connection">
@@ -99,7 +99,7 @@
           <div>
             <p class="eyebrow">Status perangkat</p>
             <p class="connection-text" id="connectionText">Belum terhubung</p>
-            <p class="device-info" id="deviceInfo">Perangkat: Eco_Watt</p>
+            <p class="device-info" id="deviceInfo">Perangkat: NEO_VOLT</p>
           </div>
           <span class="security-badge">1 USER • BLE • OFFLINE</span>
         </div>

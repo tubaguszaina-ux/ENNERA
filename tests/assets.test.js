@@ -54,3 +54,33 @@ test("setiap id yang dipakai app.js lewat $() ada di index.html", () => {
     assert.ok(html.includes(`id="${id}"`), `id "${id}" tidak ditemukan di index.html`);
   }
 });
+
+// ---- CSS ----
+// Regresi: baris `:root {` pernah hilang. Parser CSS membuang blok variabel DAN rule `* {}` di
+// sebelahnya, sehingga halaman tampil putih, teks hitam, dan input meluber dari kartu.
+const postcss = require("postcss");
+const CSS_FILE = process.env.CSS_FILE || path.join(ROOT, "styles.css");
+
+test("styles.css bisa di-parse tanpa error sintaks", () => {
+  assert.doesNotThrow(() => postcss.parse(fs.readFileSync(CSS_FILE, "utf8")));
+});
+
+test("styles.css: :root mendefinisikan semua variabel yang dipakai var(--x)", () => {
+  const root = postcss.parse(fs.readFileSync(CSS_FILE, "utf8"));
+  const defined = new Set();
+  root.walkRules(":root", (rule) => rule.walkDecls(/^--/, (d) => defined.add(d.prop)));
+  assert.ok(defined.has("--bg") && defined.has("--text"), ":root tidak ditemukan atau tidak berisi --bg/--text");
+
+  const used = new Set();
+  root.walkDecls((d) => { for (const m of d.value.matchAll(/var\((--[\w-]+)/g)) used.add(m[1]); });
+  for (const name of used) assert.ok(defined.has(name), `${name} dipakai tetapi tidak didefinisikan`);
+});
+
+test("styles.css: rule reset `* { box-sizing: border-box }` tidak hilang", () => {
+  const root = postcss.parse(fs.readFileSync(CSS_FILE, "utf8"));
+  let found = false;
+  root.walkRules((r) => {
+    if (r.selector === "*") r.walkDecls("box-sizing", (d) => { if (d.value === "border-box") found = true; });
+  });
+  assert.ok(found);
+});

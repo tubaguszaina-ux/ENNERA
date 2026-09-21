@@ -1,7 +1,7 @@
-// Service worker Eco Watt — cache dasar agar app tetap bisa dibuka tanpa internet.
+// Service worker Neo Volt — cache dasar agar app tetap bisa dibuka tanpa internet.
 // Tidak menyentuh logika Bluetooth/relay, hanya menyimpan file statis.
 
-const CACHE_NAME = "eco-watt-cache-v3";
+const CACHE_NAME = "neo-volt-cache-v5";
 const NETWORK_TIMEOUT_MS = 3000;
 const CACHE_FILES = [
   "./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest",

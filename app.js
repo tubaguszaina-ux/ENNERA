@@ -15,7 +15,7 @@ const RELAY_COUNT = DEFAULT_NAMES.length;
 /* Nama dari localStorage divalidasi dulu: satu nilai rusak dulunya
    membuat seluruh proses inisialisasi gagal. */
 function loadNames() {
-  const stored = loadJson("ecoWattNames", DEFAULT_NAMES);
+  const stored = loadJson("neoVoltNames", DEFAULT_NAMES);
   if (!Array.isArray(stored) || stored.length !== RELAY_COUNT) {
     return [...DEFAULT_NAMES];
   }
@@ -25,7 +25,7 @@ function loadNames() {
 }
 
 function loadHistory() {
-  const stored = loadJson("ecoWattHistory", []);
+  const stored = loadJson("neoVoltHistory", []);
   return Array.isArray(stored)
     ? stored.filter(x => x && typeof x.message === "string" && Number.isFinite(x.time))
     : [];
@@ -220,16 +220,16 @@ function setControlsEnabled(enabled) {
   $("saveDeviceSettingsBtn").disabled = !enabled;
 }
 
-function setConnected(connected, deviceName = "Eco_Watt") {
+function setConnected(connected, deviceName = "Neo-Volt") {
   state.connected = connected;
   $("statusDot").classList.toggle("connected", connected);
   $("statusMini").textContent = connected ? "Terhubung" : "Terputus";
   $("connectionText").textContent = connected ? "Bluetooth terhubung" : "Belum terhubung";
-  $("deviceInfo").textContent = `Perangkat: ${deviceName || "Eco_Watt"}`;
+  $("deviceInfo").textContent = `Perangkat: ${deviceName || "Neo-Volt"}`;
   updateConnectUi();
   setControlsEnabled(connected);
 
-  state.deviceName = connected ? (deviceName || "Eco_Watt") : "—";
+  state.deviceName = connected ? (deviceName || "Neo-Volt") : "—";
 
   // Status yang sama ditampilkan juga di halaman login.
   $("loginDot").classList.toggle("connected", connected);
@@ -434,7 +434,7 @@ async function connect() {
   updateConnectUi();
 
   try {
-    showToast("Mencari Eco_Watt…");
+    showToast("Mencari Neo-Volt…");
     device = await navigator.bluetooth.requestDevice({
       filters: [{ services: [SERVICE_UUID] }],
       optionalServices: [SERVICE_UUID]
@@ -452,7 +452,7 @@ async function connect() {
     await statusCharacteristic.startNotifications();
 
     setConnected(true, device.name);
-    addHistory(`Terhubung ke ${device.name || "Eco_Watt"}`);
+    addHistory(`Terhubung ke ${device.name || "Neo Volt"}`);
     showToast("Bluetooth terhubung.");
 
     await readStatus();
@@ -496,7 +496,7 @@ function handleDisconnected() {
     // Percobaan koneksi gagal atau event putus ganda: tidak ada relay yang perlu di-auto-OFF.
     if (pendingLogin) {
       abortPendingLogin();
-      showToast("Tidak dapat terhubung ke Eco Watt.");
+      showToast("Tidak dapat terhubung ke Neo Volt.");
     }
     return;
   }
@@ -538,7 +538,7 @@ function sendCommand(payload, { silent = false } = {}) {
 
 async function writeCommand(payload, silent) {
   if (!state.connected) {
-    if (!silent) showToast("Hubungkan Eco Watt terlebih dahulu.");
+    if (!silent) showToast("Hubungkan Neo Volt terlebih dahulu.");
     return false;
   }
 
@@ -740,7 +740,7 @@ $("clearHistoryBtn").addEventListener("click", () => {
 
 window.EcoWattApp = {
   onConnected(deviceName) {
-    const name = deviceName || "Eco_Watt"; // native bisa mengirim null; default parameter tidak menangkap null
+    const name = deviceName || "Neo_Volt"; // native bisa mengirim null; default parameter tidak menangkap null
     setConnected(true, name);
     addHistory(`Terhubung ke ${name}`);
     showToast("Bluetooth terhubung.");
@@ -912,7 +912,7 @@ if (!hasAndroidBridge() && !hasWebBluetooth()) {
 
 // Nama terakhir diisikan kembali, tetapi user tetap harus menekan
 // "Hubungkan" agar sesi selalu dimulai dari koneksi BLE yang nyata.
-const lastUser = loadJson("ecoWattUser", null);
+const lastUser = loadJson("neoVoltUser", null);
 if (lastUser?.name) $("loginName").value = lastUser.name;
 
 renderNames();
