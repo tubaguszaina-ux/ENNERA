@@ -1,6 +1,6 @@
 # ENNERA
 
-PWA untuk mengontrol stopkontak pintar Neo Volt (ESP32, 4 relay) lewat Bluetooth LE — tanpa internet.
+PWA untuk mengontrol stopkontak pintar ENNERA (ESP32, 4 relay) lewat Bluetooth LE — tanpa internet.
 
 ## Menjalankan
 

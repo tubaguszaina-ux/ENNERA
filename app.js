@@ -220,16 +220,16 @@ function setControlsEnabled(enabled) {
   $("saveDeviceSettingsBtn").disabled = !enabled;
 }
 
-function setConnected(connected, deviceName = "Neo-Volt") {
+function setConnected(connected, deviceName = "ENNERA") {
   state.connected = connected;
   $("statusDot").classList.toggle("connected", connected);
   $("statusMini").textContent = connected ? "Terhubung" : "Terputus";
   $("connectionText").textContent = connected ? "Bluetooth terhubung" : "Belum terhubung";
-  $("deviceInfo").textContent = `Perangkat: ${deviceName || "Neo-Volt"}`;
+  $("deviceInfo").textContent = `Perangkat: ${deviceName || "ENNERA"}`;
   updateConnectUi();
   setControlsEnabled(connected);
 
-  state.deviceName = connected ? (deviceName || "Neo-Volt") : "—";
+  state.deviceName = connected ? (deviceName || "ENNERA") : "—";
 
   // Status yang sama ditampilkan juga di halaman login.
   $("loginDot").classList.toggle("connected", connected);
@@ -434,7 +434,7 @@ async function connect() {
   updateConnectUi();
 
   try {
-    showToast("Mencari Neo-Volt…");
+    showToast("Mencari ENNERA…");
     device = await navigator.bluetooth.requestDevice({
       filters: [{ services: [SERVICE_UUID] }],
       optionalServices: [SERVICE_UUID]
@@ -452,7 +452,7 @@ async function connect() {
     await statusCharacteristic.startNotifications();
 
     setConnected(true, device.name);
-    addHistory(`Terhubung ke ${device.name || "Neo Volt"}`);
+    addHistory(`Terhubung ke ${device.name || "ENNERA"}`);
     showToast("Bluetooth terhubung.");
 
     await readStatus();
@@ -496,7 +496,7 @@ function handleDisconnected() {
     // Percobaan koneksi gagal atau event putus ganda: tidak ada relay yang perlu di-auto-OFF.
     if (pendingLogin) {
       abortPendingLogin();
-      showToast("Tidak dapat terhubung ke Neo Volt.");
+      showToast("Tidak dapat terhubung ke ENNERA.");
     }
     return;
   }
@@ -538,7 +538,7 @@ function sendCommand(payload, { silent = false } = {}) {
 
 async function writeCommand(payload, silent) {
   if (!state.connected) {
-    if (!silent) showToast("Hubungkan Neo Volt terlebih dahulu.");
+    if (!silent) showToast("Hubungkan ENNERA terlebih dahulu.");
     return false;
   }
 
