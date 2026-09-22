@@ -59,7 +59,7 @@ Jika terpotong, aplikasi membaca ulang lewat `readValue`. Sebaiknya firmware men
 ## Bungkus Android (WebView)
 
 Aplikasi memakai `window.AndroidBLE` bila ada: `connect()`, `disconnect()`, `write(json)`.
-Native memanggil balik `window.EcoWattApp`: `onConnected(nama)`, `onDisconnected()`,
+Native memanggil balik `window.EnneraApp`: `onConnected(nama)`, `onDisconnected()`,
 `onStatus(jsonString)`, `onError(pesan)`.
 
 - `write()` dianggap berhasil bila tidak melempar exception; lapor kegagalan tulis asinkron lewat `onError`.

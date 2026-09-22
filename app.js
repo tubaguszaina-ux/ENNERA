@@ -15,7 +15,7 @@ const RELAY_COUNT = DEFAULT_NAMES.length;
 /* Nama dari localStorage divalidasi dulu: satu nilai rusak dulunya
    membuat seluruh proses inisialisasi gagal. */
 function loadNames() {
-  const stored = loadJson("neoVoltNames", DEFAULT_NAMES);
+  const stored = loadJson("enneraNames", DEFAULT_NAMES);
   if (!Array.isArray(stored) || stored.length !== RELAY_COUNT) {
     return [...DEFAULT_NAMES];
   }
@@ -25,7 +25,7 @@ function loadNames() {
 }
 
 function loadHistory() {
-  const stored = loadJson("neoVoltHistory", []);
+  const stored = loadJson("enneraHistory", []);
   return Array.isArray(stored)
     ? stored.filter(x => x && typeof x.message === "string" && Number.isFinite(x.time))
     : [];
@@ -173,7 +173,7 @@ function showToast(message) {
 function addHistory(message) {
   state.history.unshift({ time: Date.now(), message });
   state.history = state.history.slice(0, 60);
-  saveJson("ecoWattHistory", state.history);
+  saveJson("enneraHistory", state.history);
   renderHistory();
 }
 
@@ -725,7 +725,7 @@ $("saveNamesBtn").addEventListener("click", () => {
     const value = $(`nameInput${index + 1}`).value.trim();
     return value || fallback;
   });
-  saveJson("ecoWattNames", state.names);
+  saveJson("enneraNames", state.names);
   renderNames();
   addHistory("Nama relay diperbarui");
   showToast("Nama berhasil disimpan di HP.");
@@ -733,14 +733,14 @@ $("saveNamesBtn").addEventListener("click", () => {
 
 $("clearHistoryBtn").addEventListener("click", () => {
   state.history = [];
-  saveJson("ecoWattHistory", state.history);
+  saveJson("enneraHistory", state.history);
   renderHistory();
   showToast("Riwayat dihapus.");
 });
 
-window.EcoWattApp = {
+window.EnneraApp = {
   onConnected(deviceName) {
-    const name = deviceName || "Neo_Volt"; // native bisa mengirim null; default parameter tidak menangkap null
+    const name = deviceName || "ENNERA"; // native bisa mengirim null; default parameter tidak menangkap null
     setConnected(true, name);
     addHistory(`Terhubung ke ${name}`);
     showToast("Bluetooth terhubung.");
@@ -796,7 +796,7 @@ function completeLogin() {
   pendingLogin = false;
   if (state.user) { // nama baru disimpan setelah login benar-benar berhasil
     state.user.since = Date.now();
-    saveJson("ecoWattUser", state.user);
+    saveJson("enneraUser", state.user);
   }
   showScreen("screenApp");
   switchTab("tabControl");
@@ -836,7 +836,7 @@ async function logout() {
   addHistory(`${state.user?.name || "Pengguna"} keluar`);
 
   state.user = null;
-  removeKey("ecoWattUser");
+  removeKey("enneraUser");
 
   $("loginName").value = "";
   $("loginError").textContent = "";
@@ -912,7 +912,7 @@ if (!hasAndroidBridge() && !hasWebBluetooth()) {
 
 // Nama terakhir diisikan kembali, tetapi user tetap harus menekan
 // "Hubungkan" agar sesi selalu dimulai dari koneksi BLE yang nyata.
-const lastUser = loadJson("neoVoltUser", null);
+const lastUser = loadJson("enneraUser", null);
 if (lastUser?.name) $("loginName").value = lastUser.name;
 
 renderNames();

@@ -1,5 +1,5 @@
 // Harness tes: memuat index.html + app.js di jsdom dengan Web Bluetooth palsu.
-// Semua pengujian bersifat black-box (lewat DOM dan window.EcoWattApp).
+// Semua pengujian bersifat black-box (lewat DOM dan window.EnneraApp).
 const fs = require("node:fs");
 const path = require("node:path");
 const { JSDOM } = require("jsdom");

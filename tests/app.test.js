@@ -73,31 +73,31 @@ test("paket status tidak menimpa pilihan Pengaturan yang belum disimpan", async 
   await app.login();
   app.$("autoOffSelect").value = "30";
   app.$("autoOffSelect").dispatchEvent(new app.window.Event("change"));
-  app.window.EcoWattApp.onStatus('{"r":[1,0,0,0],"ad":5}');
+  app.window.EnneraApp.onStatus('{"r":[1,0,0,0],"ad":5}');
   assert.equal(app.$("autoOffSelect").value, "30");
   app.click("saveDeviceSettingsBtn");
   await app.settle();
   assert.deepEqual(app.fake.log.writes.at(-1), { settings: { disconnect_delay: 30, connect_mode: "ALL_ON" } });
-  app.window.EcoWattApp.onStatus('{"ad":10}');
+  app.window.EnneraApp.onStatus('{"ad":10}');
   assert.equal(app.$("autoOffSelect").value, "10", "nilai di luar daftar harus tetap bisa ditampilkan");
 });
 
 test("status: array pendek, cm tidak valid, dan JSON rusak ditangani", async () => {
   const app = await boot();
   await app.login();
-  app.window.EcoWattApp.onStatus('{"r":[0,0,1,0],"cm":2}');
+  app.window.EnneraApp.onStatus('{"r":[0,0,1,0],"cm":2}');
   assert.ok(app.relayOn(3));
   assert.equal(app.$("connectModeSelect").value, "STAY_OFF");
 
-  app.window.EcoWattApp.onStatus('{"r":[1]}');            // array lebih pendek dari jumlah relay
+  app.window.EnneraApp.onStatus('{"r":[1]}');            // array lebih pendek dari jumlah relay
   assert.ok(app.relayOn(1) && !app.relayOn(3), "relay 3 tidak boleh tertinggal 'menyala' dari status lama");
 
-  app.window.EcoWattApp.onStatus('{"cm":null}');
-  app.window.EcoWattApp.onStatus('{"cm":9}');
+  app.window.EnneraApp.onStatus('{"cm":null}');
+  app.window.EnneraApp.onStatus('{"cm":9}');
   assert.equal(app.$("connectModeSelect").value, "STAY_OFF", "cm null/tak dikenal tidak boleh diam-diam jadi ALL_ON");
 
-  app.window.EcoWattApp.onStatus('{"r":[1,1,1');           // terpotong
-  app.window.EcoWattApp.onStatus("null");
+  app.window.EnneraApp.onStatus('{"r":[1,1,1');           // terpotong
+  app.window.EnneraApp.onStatus("null");
   assert.equal(app.text("relaySummary"), "1 dari 4 aktif", "paket rusak tidak mengubah tampilan");
 });
 
@@ -116,15 +116,15 @@ test("Android: putus saat percobaan koneksi tidak memicu countdown auto-OFF dan 
   const app = await boot({ android: true });
   app.$("loginName").value = "Bahri";
   app.click("loginConnectBtn");
-  app.window.EcoWattApp.onDisconnected();
+  app.window.EnneraApp.onDisconnected();
   assert.ok(!app.$("disconnectCountdown").classList.contains("show"));
   assert.ok(app.isActiveScreen("screenLogin"));
   assert.match(app.text("toast"), /Tidak dapat terhubung/);
   // login berikutnya tetap bisa berhasil, dan nama perangkat null tidak tercetak "null"
   app.click("loginConnectBtn");
-  app.window.EcoWattApp.onConnected(null);
+  app.window.EnneraApp.onConnected(null);
   assert.ok(app.isActiveScreen("screenApp"));
-  assert.equal(app.text("deviceInfo"), "Perangkat: Eco_Watt");
+  assert.equal(app.text("deviceInfo"), "Perangkat: ENNERA");
   assert.ok(!app.$("historyList").textContent.includes("null"));
 });
 
@@ -166,7 +166,7 @@ test("Batal pada dialog Keluar mempertahankan sesi", async () => {
 test("riwayat menampilkan tanggal untuk entri bukan hari ini dan membuang entri tanpa waktu", async () => {
   const app = await boot({
     storage: {
-      ecoWattHistory: [
+      enneraHistory: [
         { time: Date.parse("2020-01-02T12:00:00Z"), message: "entri lama" },
         { message: "tanpa waktu" }
       ]
@@ -179,7 +179,7 @@ test("riwayat menampilkan tanggal untuk entri bukan hari ini dan membuang entri 
 });
 
 test("nama relay rusak di localStorage jatuh ke nilai bawaan, bukan merusak aplikasi", async () => {
-  const app = await boot({ storage: { ecoWattNames: ["A", 5, "", null] } });
+  const app = await boot({ storage: { enneraNames: ["A", 5, "", null] } });
   assert.equal(app.text("relayName1"), "A");
   assert.equal(app.text("relayName2"), "Stopkontak 2");
   assert.equal(app.text("relayName4"), "Master Power");
