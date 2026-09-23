@@ -31,6 +31,39 @@ function loadHistory() {
     : [];
 }
 
+/* ------------------------------------------------------------------
+   Estimasi emisi karbon: ESP32 pada proyek ini tidak mengirim daya
+   nyata, jadi energi dihitung dari watt yang diisi pengguna × lama
+   relay menyala. CO2_FACTOR_DEFAULT adalah estimasi umum faktor emisi
+   grid interkoneksi Jawa-Bali (kg CO2/kWh, sumber PLN/KESDM); pengguna
+   bisa menggantinya di tab Emisi.
+   ------------------------------------------------------------------ */
+const CO2_FACTOR_DEFAULT = 0.87;
+
+function loadWattages() {
+  const stored = loadJson("enneraWatt", Array(RELAY_COUNT).fill(100));
+  if (!Array.isArray(stored) || stored.length !== RELAY_COUNT) {
+    return Array(RELAY_COUNT).fill(100);
+  }
+  return stored.map(value => {
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : 100;
+  });
+}
+
+function loadEnergyTotals() {
+  const stored = loadJson("enneraEnergyWh", Array(RELAY_COUNT).fill(0));
+  if (!Array.isArray(stored) || stored.length !== RELAY_COUNT) {
+    return Array(RELAY_COUNT).fill(0);
+  }
+  return stored.map(value => (Number.isFinite(Number(value)) ? Number(value) : 0));
+}
+
+function loadEmisiFactor() {
+  const value = Number(loadJson("enneraEmisiFactor", CO2_FACTOR_DEFAULT));
+  return Number.isFinite(value) && value >= 0 ? value : CO2_FACTOR_DEFAULT;
+}
+
 const state = {
   connected: false,
   relays: Array(RELAY_COUNT).fill(false),
@@ -41,7 +74,13 @@ const state = {
   names: loadNames(),
   history: loadHistory(),
   user: null,        // { name, since } — diisi saat login
-  deviceName: "—"
+  deviceName: "—",
+  energy: {
+    watt: loadWattages(),               // watt per relay, diisi pengguna
+    wh: loadEnergyTotals(),             // akumulasi Wh tersimpan per relay
+    onSince: Array(RELAY_COUNT).fill(null), // epoch ms sejak relay ini menyala di sesi ini
+    factor: loadEmisiFactor()           // kg CO2 per kWh
+  }
 };
 
 let device = null;
@@ -122,6 +161,7 @@ function buildNameFields() {
 buildRelayCards();
 buildTimerCards();
 buildNameFields();
+buildEmisiFields();
 
 const connectBtn = $("connectBtn");
 const allOnBtn = $("allOnBtn");
@@ -132,6 +172,17 @@ const timerCancelButtons = [...document.querySelectorAll(".timer-cancel")];
 
 const hasAndroidBridge = () => Boolean(window.AndroidBLE);
 const hasWebBluetooth = () => Boolean(navigator.bluetooth);
+
+function buildEmisiFields() {
+  $("emisiWattFields").innerHTML = state.names.map((name, i) => {
+    const n = i + 1;
+    return `
+      <div class="field">
+        <label for="wattInput${n}">${escapeHtml(name)}</label>
+        <input id="wattInput${n}" type="number" min="0" step="1" inputmode="numeric" value="${state.energy.watt[i]}">
+      </div>`;
+  }).join("");
+}
 
 // structuredClone tidak ada di WebView Android lama; kloning JSON cukup untuk data sederhana ini.
 function cloneJson(value) {
@@ -278,6 +329,70 @@ function renderRelays() {
   $("relaySummary").textContent = `${activeCount} dari ${RELAY_COUNT} aktif`;
 }
 
+/* ------------------------------------------------------------------
+   Akumulasi energi & emisi karbon. setRelayState/applyRelayArray adalah
+   satu-satunya jalur yang boleh mengubah state.relays, supaya durasi
+   menyala selalu tercatat — baik perubahan berasal dari toggle manual,
+   timer, notifikasi status ESP32, maupun auto-OFF lokal.
+   ------------------------------------------------------------------ */
+function saveEnergyTotals() {
+  saveJson("enneraEnergyWh", state.energy.wh);
+}
+
+function finalizeEnergy(index) {
+  const since = state.energy.onSince[index];
+  if (since) {
+    const hours = (Date.now() - since) / 3600000;
+    state.energy.wh[index] += hours * state.energy.watt[index];
+  }
+  state.energy.onSince[index] = null;
+}
+
+function finalizeAllEnergy() {
+  state.energy.onSince.forEach((_, index) => finalizeEnergy(index));
+  saveEnergyTotals();
+}
+
+function setRelayState(index, isOn) {
+  const wasOn = state.relays[index];
+  if (wasOn === isOn) return;
+  if (wasOn && !isOn) finalizeEnergy(index);
+  state.relays[index] = isOn;
+  if (isOn) state.energy.onSince[index] = Date.now();
+  saveEnergyTotals();
+}
+
+function applyRelayArray(newRelays) {
+  newRelays.forEach((isOn, index) => setRelayState(index, Boolean(isOn)));
+}
+
+function currentEnergyWh(index) {
+  const since = state.energy.onSince[index];
+  const running = since ? ((Date.now() - since) / 3600000) * state.energy.watt[index] : 0;
+  return state.energy.wh[index] + running;
+}
+
+function formatCo2(grams) {
+  return grams < 1000 ? `${grams.toFixed(0)} g` : `${(grams / 1000).toFixed(2)} kg`;
+}
+
+function renderEmisi() {
+  let totalWh = 0;
+  const rows = state.names.map((name, i) => {
+    const wh = currentEnergyWh(i);
+    totalWh += wh;
+    const kwh = wh / 1000;
+    const co2g = kwh * state.energy.factor * 1000;
+    return `<div class="feature-row"><span>${escapeHtml(name)}</span>` +
+      `<strong>${kwh.toFixed(3)} kWh · ${formatCo2(co2g)} CO₂</strong></div>`;
+  });
+  $("emisiRelayList").innerHTML = rows.join("");
+
+  const totalKwh = totalWh / 1000;
+  $("emisiTotalKwh").textContent = `${totalKwh.toFixed(3)} kWh`;
+  $("emisiTotalCo2").textContent = formatCo2(totalKwh * state.energy.factor * 1000);
+}
+
 function formatDuration(totalSeconds) {
   const seconds = Math.max(0, Number(totalSeconds) || 0);
   const hours = Math.floor(seconds / 3600);
@@ -317,7 +432,7 @@ function tickTimers() {
   state.timerEnds.forEach((end, index) => {
     if (end && timerRemaining(index) === 0) {
       state.timerEnds[index] = 0;
-      state.relays[index] = false;
+      setRelayState(index, false);
       expired = true;
       addHistory(`Countdown ${state.names[index]} selesai`);
     }
@@ -328,6 +443,7 @@ function tickTimers() {
     if (state.connected) sendCommand({ command: "GET_STATUS" }, { silent: true });
   }
   if (expired || state.timerEnds.some(Boolean)) renderTimers();
+  renderEmisi();
 }
 
 function ensureOption(select, value, label) {
@@ -488,9 +604,11 @@ function onBrowserDisconnected() {
 
 function handleDisconnected() {
   const wasConnected = state.connected;
+  finalizeAllEnergy(); // BLE putus: tidak bisa lagi memastikan relay masih menyala
   setConnected(false);
   state.timerEnds = Array(RELAY_COUNT).fill(0);
   renderTimers();
+  renderEmisi();
 
   if (!wasConnected) {
     // Percobaan koneksi gagal atau event putus ganda: tidak ada relay yang perlu di-auto-OFF.
@@ -520,7 +638,7 @@ function handleDisconnected() {
 
   disconnectUiTimer = setTimeout(() => {
     clearInterval(disconnectUiInterval);
-    state.relays = Array(RELAY_COUNT).fill(false);
+    applyRelayArray(Array(RELAY_COUNT).fill(false));
     renderRelays();
     renderUser();
     alert.textContent = "Waktu auto-OFF habis. Hubungkan kembali untuk memastikan kondisi relay.";
@@ -572,7 +690,7 @@ async function toggleRelay(relayNumber) {
   try {
     const nextState = !state.relays[relayNumber - 1];
     if (await sendCommand({ relay: relayNumber, state: nextState })) {
-      state.relays[relayNumber - 1] = nextState;
+      setRelayState(relayNumber - 1, nextState);
       state.timerEnds[relayNumber - 1] = 0;
       renderRelays();
       renderTimers();
@@ -586,7 +704,7 @@ async function toggleRelay(relayNumber) {
 
 async function setAll(on) {
   if (await sendCommand({ command: on ? "ALL_ON" : "ALL_OFF" })) {
-    state.relays = Array(RELAY_COUNT).fill(on);
+    applyRelayArray(Array(RELAY_COUNT).fill(on));
     state.timerEnds = Array(RELAY_COUNT).fill(0);
     renderUser();
     renderRelays();
@@ -612,7 +730,7 @@ async function startTimer(relayNumber) {
   }
 
   if (await sendCommand({ timer: { relay: relayNumber, seconds } })) {
-    state.relays[relayNumber - 1] = true;
+    setRelayState(relayNumber - 1, true);
     setTimerSeconds(relayNumber - 1, seconds);
     renderRelays();
     renderTimers();
@@ -665,9 +783,9 @@ function receiveStatus(rawPayload) {
 
     // Selalu tepat RELAY_COUNT elemen, meskipun firmware mengirim array lebih pendek.
     if (Array.isArray(data.r)) {
-      state.relays = Array.from({ length: RELAY_COUNT }, (_, i) => Boolean(data.r[i]));
+      applyRelayArray(Array.from({ length: RELAY_COUNT }, (_, i) => Boolean(data.r[i])));
     } else if (data.relay1 !== undefined) {
-      state.relays = state.names.map((_, i) => Boolean(data[`relay${i + 1}`]));
+      applyRelayArray(state.names.map((_, i) => Boolean(data[`relay${i + 1}`])));
     }
     // Paket status yang tidak membawa data relay dibiarkan apa adanya,
     // agar update parsial tidak menampilkan semua relay sebagai mati.
@@ -691,6 +809,7 @@ function receiveStatus(rawPayload) {
     renderTimers();
     renderSettings();
     renderUser();
+    renderEmisi();
     return true;
   } catch {
     console.warn("Status BLE tidak valid:", rawPayload);
@@ -736,6 +855,38 @@ $("clearHistoryBtn").addEventListener("click", () => {
   saveJson("enneraHistory", state.history);
   renderHistory();
   showToast("Riwayat dihapus.");
+});
+
+$("saveWattBtn").addEventListener("click", () => {
+  state.energy.watt = state.names.map((_, i) => {
+    const value = Number($(`wattInput${i + 1}`).value);
+    return Number.isFinite(value) && value >= 0 ? value : state.energy.watt[i];
+  });
+  saveJson("enneraWatt", state.energy.watt);
+  buildEmisiFields();
+  renderEmisi();
+  showToast("Watt tiap stopkontak disimpan.");
+});
+
+$("saveFactorBtn").addEventListener("click", () => {
+  const value = Number($("emisiFactorInput").value);
+  if (!Number.isFinite(value) || value < 0) {
+    showToast("Masukkan angka faktor emisi yang valid.");
+    return;
+  }
+  state.energy.factor = value;
+  saveJson("enneraEmisiFactor", value);
+  renderEmisi();
+  showToast("Faktor emisi disimpan.");
+});
+
+$("resetEnergyBtn").addEventListener("click", async () => {
+  if (!(await askConfirm("Hapus akumulasi energi dan emisi tersimpan?", "Reset"))) return;
+  state.energy.wh = Array(RELAY_COUNT).fill(0);
+  state.energy.onSince = state.relays.map(isOn => (isOn ? Date.now() : null));
+  saveEnergyTotals();
+  renderEmisi();
+  showToast("Data energi direset.");
 });
 
 window.EnneraApp = {
@@ -858,6 +1009,7 @@ function switchTab(tabId) {
     button.setAttribute("aria-selected", String(isActive));
   });
   if (tabId === "tabUser") renderUser();
+  if (tabId === "tabEmisi") renderEmisi();
   window.scrollTo(0, 0);
 }
 
@@ -922,6 +1074,8 @@ renderSettings();
 renderHistory();
 setConnected(false);
 renderUser();
+$("emisiFactorInput").value = state.energy.factor;
+renderEmisi();
 showScreen("screenLogin");
 
 ["autoOffSelect", "connectModeSelect"].forEach(id => {

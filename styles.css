@@ -578,6 +578,27 @@ summary::-webkit-details-marker { display: none; }
 
 .feature-row strong { color: var(--text); }
 
+.emisi-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.emisi-stat {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--well);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+}
+
+.emisi-stat span { font-size: 11px; color: var(--muted); }
+.emisi-stat strong { font-size: 19px; color: var(--accent-soft); }
+
+.save-btn.danger { background: var(--red); color: var(--text); }
+
 .countdown-alert {
   display: none;
   margin-top: 12px;
@@ -737,8 +758,8 @@ summary::-webkit-details-marker { display: none; }
   transform: translateX(-50%);
   width: min(100%, 760px);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   background: rgba(6, 20, 42, .94);
   backdrop-filter: blur(14px);

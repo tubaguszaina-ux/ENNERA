@@ -74,7 +74,7 @@
 </section>
 
 <!-- ============================================================
-     PAGE 2 — APLIKASI (4 TAB)
+     PAGE 2 — APLIKASI (5 TAB)
      ============================================================ -->
 <section class="screen" id="screenApp">
   <main class="app">
@@ -143,7 +143,72 @@
       </section>
     </div>
 
-    <!-- ---------- TAB 3: PENGATURAN LOKAL ---------- -->
+    <!-- ---------- TAB 3: ESTIMASI EMISI KARBON ---------- -->
+    <div class="tab-panel" id="tabEmisi" role="tabpanel" aria-labelledby="navEmisi">
+      <section class="hero">
+        <div class="hero-row">
+          <div>
+            <p class="eyebrow">Estimasi kumulatif</p>
+            <p class="connection-text">Konsumsi energi &amp; emisi karbon</p>
+            <p class="device-info">Dihitung dari watt yang Anda masukkan × lama relay menyala</p>
+          </div>
+        </div>
+        <div class="emisi-stats">
+          <div class="emisi-stat">
+            <span>Total energi</span>
+            <strong id="emisiTotalKwh">0,000 kWh</strong>
+          </div>
+          <div class="emisi-stat">
+            <span>Total emisi CO₂</span>
+            <strong id="emisiTotalCo2">0 g</strong>
+          </div>
+        </div>
+        <p class="hero-note" style="display:block">
+          Estimasi, bukan pengukuran langsung — ESP32 pada proyek ini tidak mengukur daya nyata.
+          Sesuaikan watt tiap stopkontak dan faktor emisi grid di bawah agar hasilnya representatif.
+        </p>
+      </section>
+
+      <div class="section-title">
+        <h2>Per stopkontak</h2>
+        <span>Sejak data terakhir direset</span>
+      </div>
+      <section class="feature-list" id="emisiRelayList"></section>
+
+      <details style="margin-top:16px">
+        <summary>Watt tiap stopkontak &amp; faktor emisi</summary>
+        <div class="settings-body">
+          <div class="settings-block">
+            <h3>Daya tiap relay (watt)</h3>
+            <!-- Input watt dibuat otomatis oleh app.js -->
+            <div id="emisiWattFields"></div>
+            <button class="save-btn" id="saveWattBtn">Simpan Watt</button>
+            <p class="settings-help">
+              Isi sesuai daya alat yang biasa dicolokkan ke tiap stopkontak. Nilai ini dipakai untuk
+              menghitung energi (kWh), bukan hasil pengukuran ESP32.
+            </p>
+          </div>
+          <div class="settings-block">
+            <h3>Faktor emisi grid listrik</h3>
+            <div class="field">
+              <label for="emisiFactorInput">kg CO₂ per kWh</label>
+              <input id="emisiFactorInput" type="number" min="0" step="0.01" inputmode="decimal">
+            </div>
+            <button class="save-btn" id="saveFactorBtn">Simpan Faktor Emisi</button>
+            <p class="settings-help">
+              Default 0,87 kg CO₂/kWh — estimasi umum sistem interkoneksi Jawa-Bali (PLN/KESDM).
+              Ganti bila Anda punya angka faktor emisi grid yang lebih akurat untuk wilayah Anda.
+            </p>
+          </div>
+          <div class="settings-block">
+            <button class="save-btn danger" id="resetEnergyBtn">Reset Data Energi</button>
+            <p class="settings-help">Menghapus akumulasi kWh dan emisi tersimpan di HP ini. Watt dan faktor emisi tidak ikut terhapus.</p>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ---------- TAB 4: PENGATURAN LOKAL ---------- -->
     <div class="tab-panel" id="tabSettings" role="tabpanel" aria-labelledby="navSettings">
       <div class="section-title">
         <h2>Pengaturan lokal</h2>
@@ -202,7 +267,7 @@
       </details>
     </div>
 
-    <!-- ---------- TAB 4: INFORMASI USER + LOGOUT ---------- -->
+    <!-- ---------- TAB 5: INFORMASI USER + LOGOUT ---------- -->
     <div class="tab-panel" id="tabUser" role="tabpanel" aria-labelledby="navUser">
       <div class="section-title">
         <h2>Informasi pengguna</h2>
@@ -256,6 +321,13 @@
       </svg>
       Timer
       <span class="tab-dot" id="timerDot"></span>
+    </button>
+    <button class="tab-btn" id="navEmisi" data-tab="tabEmisi" role="tab" aria-controls="tabEmisi" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 22s7-6.7 7-12.5A7 7 0 0 0 5 9.5C5 15.3 12 22 12 22Z"/>
+        <circle cx="12" cy="9.5" r="2.4"/>
+      </svg>
+      Emisi
     </button>
     <button class="tab-btn" id="navSettings" data-tab="tabSettings" role="tab" aria-controls="tabSettings" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true">
