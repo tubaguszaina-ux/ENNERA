@@ -924,8 +924,8 @@ function attemptLogin() {
   if (connecting) return;
   const name = $("loginName").value.trim();
 
-  if (name.length < 2) {
-    $("loginError").textContent = "Nama minimal 2 karakter.";
+  if (name.length < 3) {
+    $("loginError").textContent = "Minimal 3 Karakter.";
     $("loginName").focus();
     return;
   }
