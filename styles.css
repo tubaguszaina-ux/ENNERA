@@ -370,7 +370,7 @@ button:disabled {
   border-radius: 50%;
   background: #e9eff9;
   box-shadow: 0 2px 7px rgba(0,0,0,.32);
-  transition: transform .38s var(--ease-spring);
+  transition: transform .18s var(--ease-spring);
 }
 
 .switch.on {
