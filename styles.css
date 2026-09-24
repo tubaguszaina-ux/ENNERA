@@ -38,8 +38,8 @@
   /* --- Interaksi halus --- */
   --ease: cubic-bezier(.22, 1, .36, 1);
   --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
-  --fast: .18s;
-  --med: .32s;
+  --fast: .16s;
+  --med: .26s;
 }
 
 * { box-sizing: border-box; }
@@ -80,21 +80,21 @@ body {
   width: 46vh; height: 46vh;
   top: -14vh; left: -8vw;
   background: radial-gradient(circle, #0a4faf, transparent 70%);
-  animation: drift1 25s var(--ease) infinite alternate;
+  animation: drift1 22s var(--ease) infinite alternate;
 }
 
 .bg-orbs span:nth-child(2) {
   width: 34vh; height: 34vh;
   top: 34vh; right: -10vw;
   background: radial-gradient(circle, rgba(255, 213, 0, .55), transparent 70%);
-  animation: drift2 25s var(--ease) infinite alternate;
+  animation: drift2 26s var(--ease) infinite alternate;
 }
 
 .bg-orbs span:nth-child(3) {
   width: 40vh; height: 40vh;
   bottom: -16vh; left: 18vw;
   background: radial-gradient(circle, #123a72, transparent 70%);
-  animation: drift3 25s var(--ease) infinite alternate;
+  animation: drift3 30s var(--ease) infinite alternate;
 }
 
 @keyframes drift1 { to { transform: translate(6vw, 8vh) scale(1.12); } }
@@ -887,12 +887,45 @@ summary::-webkit-details-marker { display: none; }
 
 .app { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 
-.tab-panel { display: none; }
-.tab-panel.active { display: block; animation: fade .25s var(--ease); }
+.tab-panel {
+  display: none;
+  opacity: 0;
+  transform: translateY(8px);
+}
 
-@keyframes fade {
-  from { opacity: 0; transform: translateY(10px) scale(.99); filter: blur(2px); }
-  to   { opacity: 1; transform: none; filter: blur(0); }
+.tab-panel.active {
+  display: block;
+  animation: panelIn .26s var(--ease) both;
+}
+
+.tab-panel.leaving {
+  display: block;
+  animation: panelOut .14s var(--ease) both;
+}
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes panelOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
+/* Kartu relay masuk bertahap (stagger) saat tab Control tampil */
+.tab-panel.active .relay-card {
+  animation: cardIn .3s var(--ease) both;
+}
+.tab-panel.active .relay-card:nth-child(1) { animation-delay: .02s; }
+.tab-panel.active .relay-card:nth-child(2) { animation-delay: .06s; }
+.tab-panel.active .relay-card:nth-child(3) { animation-delay: .10s; }
+.tab-panel.active .relay-card:nth-child(4) { animation-delay: .14s; }
+.tab-panel.active .relay-card:nth-child(5) { animation-delay: .18s; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .tabbar {

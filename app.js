@@ -924,8 +924,8 @@ function attemptLogin() {
   if (connecting) return;
   const name = $("loginName").value.trim();
 
-  if (name.length < 3) {
-    $("loginError").textContent = "Minimal 3 Karakter.";
+  if (name.length < 2) {
+    $("loginError").textContent = "Nama minimal 2 karakter.";
     $("loginName").focus();
     return;
   }
@@ -999,18 +999,40 @@ async function logout() {
    HALAMAN 2 — NAVIGASI TAB BAWAH
    ================================================================== */
 
+let tabLeaveTimer = null;
+
 function switchTab(tabId) {
-  document.querySelectorAll(".tab-panel").forEach(panel => {
-    panel.classList.toggle("active", panel.id === tabId);
-  });
+  const current = document.querySelector(".tab-panel.active");
+  const next = document.getElementById(tabId);
+  if (!next || current === next) return;
+
   document.querySelectorAll(".tab-btn").forEach(button => {
     const isActive = button.dataset.tab === tabId;
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-selected", String(isActive));
   });
+
   if (tabId === "tabUser") renderUser();
   if (tabId === "tabEmisi") renderEmisi();
-  window.scrollTo(0, 0);
+
+  clearTimeout(tabLeaveTimer);
+
+  if (!current) {
+    next.classList.add("active");
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  // Panel lama fade-out singkat dulu, baru panel baru fade-in,
+  // supaya transisinya terasa menyatu (bukan loncat mendadak).
+  current.classList.remove("active");
+  current.classList.add("leaving");
+
+  tabLeaveTimer = setTimeout(() => {
+    current.classList.remove("leaving");
+    next.classList.add("active");
+    window.scrollTo(0, 0);
+  }, 140);
 }
 
 document.querySelectorAll(".tab-btn").forEach(button => {
