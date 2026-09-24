@@ -999,12 +999,6 @@ async function logout() {
    HALAMAN 2 — NAVIGASI TAB BAWAH
    ================================================================== */
 
-const tabViewport = $("tabViewport");
-const tabTrack = $("tabTrack");
-const tabIndicator = $("tabIndicator");
-const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
-let currentTabIndex = 0;
-
 function switchTab(tabId) {
   document.querySelectorAll(".tab-panel").forEach(panel => {
     panel.classList.toggle("active", panel.id === tabId);
@@ -1014,13 +1008,6 @@ function switchTab(tabId) {
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-selected", String(isActive));
   });
-  const idx = tabButtons.findIndex(button => button.dataset.tab === tabId);
-  if (idx > -1) {
-    currentTabIndex = idx;
-    tabTrack.classList.remove("dragging");
-    tabTrack.style.transform = `translateX(-${idx * 20}%)`;
-    tabIndicator.style.transform = `translateX(${idx * 100}%)`;
-  }
   if (tabId === "tabUser") renderUser();
   if (tabId === "tabEmisi") renderEmisi();
   window.scrollTo(0, 0);
@@ -1028,72 +1015,6 @@ function switchTab(tabId) {
 
 document.querySelectorAll(".tab-btn").forEach(button => {
   button.addEventListener("click", () => switchTab(button.dataset.tab));
-});
-
-/* ---------- Swipe geser antar tab (mouse + sentuh, via Pointer Events) ---------- */
-let swipeActive = false;
-let swipeLockedHorizontal = null;
-let swipeStartX = 0;
-let swipeStartY = 0;
-let swipeDeltaX = 0;
-
-function onSwipeStart(event) {
-  if (event.pointerType === "mouse" && event.button !== 0) return;
-  swipeActive = true;
-  swipeLockedHorizontal = null;
-  swipeStartX = event.clientX;
-  swipeStartY = event.clientY;
-  swipeDeltaX = 0;
-}
-
-function onSwipeMove(event) {
-  if (!swipeActive) return;
-  const dx = event.clientX - swipeStartX;
-  const dy = event.clientY - swipeStartY;
-
-  if (swipeLockedHorizontal === null) {
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-    swipeLockedHorizontal = Math.abs(dx) > Math.abs(dy);
-    if (swipeLockedHorizontal) tabTrack.classList.add("dragging");
-  }
-  if (!swipeLockedHorizontal) return;
-
-  event.preventDefault();
-  swipeDeltaX = dx;
-
-  const width = tabViewport.getBoundingClientRect().width || 1;
-  let percent = (dx / width) * 20; // 20% track = 1 panel
-
-  const atFirstTab = currentTabIndex === 0 && dx > 0;
-  const atLastTab = currentTabIndex === tabButtons.length - 1 && dx < 0;
-  if (atFirstTab || atLastTab) percent *= 0.35; // efek elastis di ujung
-
-  tabTrack.style.transform = `translateX(${-(currentTabIndex * 20) + percent}%)`;
-}
-
-function onSwipeEnd() {
-  if (!swipeActive) return;
-  swipeActive = false;
-  tabTrack.classList.remove("dragging");
-
-  if (!swipeLockedHorizontal) { swipeLockedHorizontal = null; return; }
-  swipeLockedHorizontal = null;
-
-  const width = tabViewport.getBoundingClientRect().width || 1;
-  const threshold = width * 0.16;
-  let targetIndex = currentTabIndex;
-  if (swipeDeltaX <= -threshold && currentTabIndex < tabButtons.length - 1) targetIndex += 1;
-  else if (swipeDeltaX >= threshold && currentTabIndex > 0) targetIndex -= 1;
-
-  switchTab(tabButtons[targetIndex].dataset.tab);
-}
-
-tabViewport.addEventListener("pointerdown", onSwipeStart);
-tabViewport.addEventListener("pointermove", onSwipeMove, { passive: false });
-tabViewport.addEventListener("pointerup", onSwipeEnd);
-tabViewport.addEventListener("pointercancel", onSwipeEnd);
-tabViewport.addEventListener("pointerleave", (event) => {
-  if (swipeActive && event.pointerType === "mouse") onSwipeEnd();
 });
 
 /* ==================================================================
