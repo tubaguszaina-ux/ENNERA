@@ -40,6 +40,13 @@ function loadHistory() {
    ------------------------------------------------------------------ */
 const CO2_FACTOR_DEFAULT = 0.87;
 
+/* Skala cincin "beban saat ini" di tiap kartu relay (tab Kontrol). ESP32 di proyek ini tidak
+   mengukur arus nyata, jadi cincinnya bukan pembacaan sensor — cuma supaya isian watt yang
+   dikonfigurasi user (lihat state.energy.watt) punya skala visual yang wajar. 2200 W dipakai
+   sebagai referensi karena itu rating umum MCB/stopkontak rumah tangga 10A/220V di Indonesia. */
+const RELAY_MAX_WATT_REF = 2200;
+const RING_CIRCUMFERENCE = 100.5; // 2 * π * r, r=16 (lihat viewBox cincin di buildRelayCards)
+
 function loadWattages() {
   const stored = loadJson("enneraWatt", Array(RELAY_COUNT).fill(100));
   if (!Array.isArray(stored) || stored.length !== RELAY_COUNT) {
@@ -80,6 +87,14 @@ const state = {
     wh: loadEnergyTotals(),             // akumulasi Wh tersimpan per relay
     onSince: Array(RELAY_COUNT).fill(null), // epoch ms sejak relay ini menyala di sesi ini
     factor: loadEmisiFactor()           // kg CO2 per kWh
+  },
+  // Visual daya real-time (tab Kontrol + tab Emisi). "current" = target sebenarnya (watt
+  // relay yang ON dijumlah), "displayed" mengejar "current" tiap frame biar gerakannya halus
+  // (lihat powerWaveTick). Bukan sensor — tetap dari watt yang dikonfigurasi pengguna.
+  power: {
+    current: 0,
+    displayed: 0,
+    history: Array(36).fill(0)
   }
 };
 
@@ -115,6 +130,16 @@ function buildRelayCards() {
           </div>
           <button class="switch relay-toggle" data-relay="${n}"
                   aria-label="Ubah Relay ${n}" aria-pressed="false" disabled></button>
+        </div>
+        <div class="relay-load">
+          <svg class="relay-ring" viewBox="0 0 40 40" aria-hidden="true">
+            <circle class="ring-track" cx="20" cy="20" r="16"></circle>
+            <circle class="ring-fill" cx="20" cy="20" r="16"></circle>
+          </svg>
+          <div class="relay-watt">
+            <strong>0 W</strong>
+            <span>beban saat ini</span>
+          </div>
         </div>
         <span class="relay-state">Mati</span>
       </article>`;
@@ -319,14 +344,273 @@ function renderRelays() {
     const card = document.querySelector(`.relay-card[data-relay="${relayNumber}"]`);
     const button = document.querySelector(`.relay-toggle[data-relay="${relayNumber}"]`);
     const label = card.querySelector(".relay-state");
+    // classList lama (sebelum baris toggle di bawah) = tampilan render sebelumnya,
+    // jadi ini caranya tahu relay ini baru saja pindah dari OFF ke ON tanpa nyimpan
+    // salinan state terpisah.
+    const justTurnedOn = isOn && !card.classList.contains("active");
 
     card.classList.toggle("active", isOn);
     button.classList.toggle("on", isOn);
     button.setAttribute("aria-pressed", String(isOn));
     label.textContent = isOn ? "Menyala" : "Mati";
+
+    if (justTurnedOn) flashRelayConfirm(card);
   });
 
   $("relaySummary").textContent = `${activeCount} dari ${RELAY_COUNT} aktif`;
+  renderPower();
+}
+
+// Kilas ring sesaat, cuma dipicu saat relay benar-benar pindah ke ON (lihat renderRelays).
+function flashRelayConfirm(card) {
+  card.classList.remove("confirm");
+  void card.offsetWidth; // paksa reflow supaya animasinya bisa retrigger
+  card.classList.add("confirm");
+  setTimeout(() => card.classList.remove("confirm"), 650);
+}
+
+/* ------------------------------------------------------------------
+   Visual daya real-time: cincin+watt per relay (Kontrol), proporsi
+   per-soket dan grafik gelombang (Emisi). Semuanya dari watt yang
+   dikonfigurasi user × status ON/OFF asli — bukan sensor, konsisten
+   dengan cara tab Emisi menghitung energi/CO2.
+   ------------------------------------------------------------------ */
+function renderPower() {
+  let total = 0;
+  const loads = state.relays.map((isOn, i) => {
+    const watt = isOn ? state.energy.watt[i] : 0;
+    total += watt;
+    return watt;
+  });
+
+  loads.forEach((watt, i) => {
+    const card = document.querySelector(`.relay-card[data-relay="${i + 1}"]`);
+    if (!card) return;
+    const ring = card.querySelector(".ring-fill");
+    const wattOut = card.querySelector(".relay-watt strong");
+    const pct = Math.min(1, watt / RELAY_MAX_WATT_REF);
+    if (ring) ring.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - pct));
+    if (wattOut) wattOut.textContent = `${Math.round(watt)} W`;
+  });
+
+  renderProportion(loads, total);
+
+  state.power.current = total;
+  wakePowerWave();
+  const nowLabel = $("powerNowLabel");
+  if (nowLabel) nowLabel.textContent = `${Math.round(total)} W aktif`;
+}
+
+function renderProportion(loads, total) {
+  const list = $("powerProportionList");
+  if (!list) return;
+
+  if (total <= 0) {
+    list.innerHTML = `<p class="empty-hint">Tidak ada relay yang menyala sekarang.</p>`;
+    return;
+  }
+
+  list.innerHTML = loads.map((watt, i) => {
+    if (watt <= 0) return "";
+    const pct = (watt / total) * 100;
+    return `
+      <div class="proportion-row">
+        <div class="proportion-head">
+          <span>${escapeHtml(state.names[i])}</span>
+          <strong>${pct.toFixed(0)}% · ${Math.round(watt)} W</strong>
+        </div>
+        <div class="proportion-track"><div class="proportion-fill" style="width:${pct.toFixed(1)}%"></div></div>
+      </div>`;
+  }).join("");
+}
+
+const reduceMotionQuery = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : null;
+function prefersReducedMotion() { return !!(reduceMotionQuery && reduceMotionQuery.matches); }
+
+/* ------------------------------------------------------------------
+   Grafik gelombang daya (tab Emisi). "displayed" mengejar
+   state.power.current tiap frame (lerp sederhana) biar transisinya
+   halus; sample untuk grafiknya sendiri diambil tiap 800ms ke buffer
+   history. Berjalan terus dari awal — bukan cuma saat BLE tersambung
+   — karena renderPower() sudah membuat "current" otomatis 0 saat
+   semua relay OFF/belum konek, jadi grafiknya tetap jujur.
+   ------------------------------------------------------------------ */
+let powerWaveRAF = null;
+let powerHistoryTimer = null;
+
+function drawPowerWave() {
+  const canvas = $("powerWaveCanvas");
+  if (!canvas) return;
+  let ctx;
+  try {
+    ctx = canvas.getContext("2d");
+  } catch (err) {
+    return; // lingkungan tanpa dukungan canvas 2D (mis. jsdom saat test) — lewati, jangan sampai crash
+  }
+  if (!ctx) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const cssWidth = canvas.clientWidth || 280;
+  const cssHeight = canvas.clientHeight || 120;
+  if (canvas.width !== Math.round(cssWidth * dpr) || canvas.height !== Math.round(cssHeight * dpr)) {
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+  const data = state.power.history;
+  const floor = RELAY_MAX_WATT_REF * 0.25;
+  const maxVal = Math.max(floor, state.power.displayed, ...data);
+  const step = cssWidth / (data.length - 1);
+  const toY = (v) => cssHeight - (Math.min(v, maxVal) / maxVal) * (cssHeight - 14) - 6;
+
+  const points = data.map((v, i) => [i * step, toY(v)]);
+  points[points.length - 1] = [cssWidth, toY(state.power.displayed)];
+
+  const styles = getComputedStyle(document.documentElement);
+  const accent = styles.getPropertyValue("--accent").trim() || "#ffd500";
+  const blue = styles.getPropertyValue("--blue").trim() || "#003f88";
+
+  ctx.beginPath();
+  ctx.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i++) {
+    const [x, y] = points[i];
+    const [px, py] = points[i - 1];
+    ctx.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+  }
+  ctx.lineTo(points[points.length - 1][0], points[points.length - 1][1]);
+
+  const line = ctx.createLinearGradient(0, 0, cssWidth, 0);
+  line.addColorStop(0, blue);
+  line.addColorStop(1, accent);
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 2.4;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  ctx.lineTo(cssWidth, cssHeight);
+  ctx.lineTo(0, cssHeight);
+  ctx.closePath();
+  const fill = ctx.createLinearGradient(0, 0, 0, cssHeight);
+  fill.addColorStop(0, "rgba(255, 213, 0, .22)");
+  fill.addColorStop(1, "rgba(255, 213, 0, 0)");
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
+function powerWaveTick() {
+  const target = state.power.current;
+  if (prefersReducedMotion()) {
+    state.power.displayed = target;
+  } else {
+    const next = state.power.displayed + (target - state.power.displayed) * 0.08;
+    state.power.displayed = Math.abs(target - next) < 0.05 ? target : next;
+  }
+  drawPowerWave();
+
+  if (state.power.displayed === target) {
+    // Sudah pas dengan target: berhenti menjadwalkan diri sendiri (hemat baterai untuk
+    // grafik yang lagi diam) — wakePowerWave() yang membangunkan lagi kalau ada perubahan.
+    powerWaveRAF = null;
+  } else {
+    powerWaveRAF = requestAnimationFrame(powerWaveTick);
+  }
+}
+
+// Dipanggil dari renderPower() tiap kali target berubah. Aman dipanggil berkali-kali —
+// tidak menjadwalkan dobel selama rAF sebelumnya masih berjalan.
+function wakePowerWave() {
+  if (!powerWaveRAF) powerWaveRAF = requestAnimationFrame(powerWaveTick);
+}
+
+function startPowerWave() {
+  drawPowerWave();
+  wakePowerWave();
+  if (!powerHistoryTimer) {
+    powerHistoryTimer = setInterval(() => {
+      state.power.history.push(state.power.displayed);
+      state.power.history.shift();
+    }, 800);
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    if (powerWaveRAF) cancelAnimationFrame(powerWaveRAF);
+    powerWaveRAF = null;
+  } else {
+    wakePowerWave();
+  }
+});
+
+/* ------------------------------------------------------------------
+   Partikel ambient di latar (lihat .particle-canvas, styles.css).
+   Murni dekorasi — jalan dari awal terlepas dari status BLE — tapi
+   tidak dinyalakan sama sekali kalau prefers-reduced-motion aktif.
+   ------------------------------------------------------------------ */
+let particleRAF = null;
+
+function initParticles() {
+  const canvas = $("particleCanvas");
+  if (!canvas || prefersReducedMotion()) return;
+
+  let ctx;
+  try {
+    ctx = canvas.getContext("2d");
+  } catch (err) {
+    return; // lingkungan tanpa dukungan canvas 2D (mis. jsdom saat test) — lewati, jangan sampai crash
+  }
+  if (!ctx) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  let particles = [];
+
+  function seed() {
+    const w = window.innerWidth, h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    particles = Array.from({ length: 22 }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: 0.6 + Math.random() * 1.5,
+      vx: (Math.random() - 0.5) * 0.1,
+      vy: -0.04 - Math.random() * 0.1
+    }));
+  }
+  seed();
+  window.addEventListener("resize", seed);
+
+  const dotColor = getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#eaf1fb";
+
+  function step() {
+    const w = window.innerWidth, h = window.innerHeight;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = dotColor;
+    ctx.globalAlpha = 0.4;
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
+      if (p.x < -10) p.x = w + 10;
+      if (p.x > w + 10) p.x = -10;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    particleRAF = requestAnimationFrame(step);
+  }
+  step();
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (particleRAF) cancelAnimationFrame(particleRAF);
+      particleRAF = null;
+    } else if (!particleRAF) {
+      step();
+    }
+  });
 }
 
 /* ------------------------------------------------------------------
@@ -1006,11 +1290,14 @@ function switchTab(tabId) {
   const next = document.getElementById(tabId);
   if (!next || current === next) return;
 
-  document.querySelectorAll(".tab-btn").forEach(button => {
+  let activeButton = null;
+  document.querySelectorAll(".tab-btn").forEach((button) => {
     const isActive = button.dataset.tab === tabId;
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-selected", String(isActive));
+    if (isActive) activeButton = button;
   });
+  positionTabIndicator(activeButton);
 
   if (tabId === "tabUser") renderUser();
   if (tabId === "tabEmisi") renderEmisi();
@@ -1020,6 +1307,7 @@ function switchTab(tabId) {
   if (!current) {
     next.classList.add("active");
     window.scrollTo(0, 0);
+    if (tabId === "tabEmisi") wakePowerWave();
     return;
   }
 
@@ -1032,8 +1320,30 @@ function switchTab(tabId) {
     current.classList.remove("leaving");
     next.classList.add("active");
     window.scrollTo(0, 0);
+    // Kanvas grafik baru punya ukuran nyata setelah panelnya jadi display:block
+    // (sebelum itu 0x0 karena tab-panel non-aktif memakai display:none) — "bangunkan"
+    // sekali di sini supaya langsung tergambar, bukan nunggu ada relay yang berubah.
+    if (tabId === "tabEmisi") wakePowerWave();
   }, 140);
 }
+
+// Diukur dari posisi/lebar tombol yang benar-benar dirender (getBoundingClientRect), bukan
+// dari persentase — .tabbar pakai CSS grid dan indikatornya absolutely-positioned di luar
+// alur grid itu, jadi persentase lebar/translateX tidak selalu merujuk ke lebar yang sama.
+function positionTabIndicator(button) {
+  const indicator = $("tabIndicator");
+  if (!indicator || !button) return;
+  const nav = indicator.parentElement;
+  if (!nav) return;
+  const navRect = nav.getBoundingClientRect();
+  const btnRect = button.getBoundingClientRect();
+  indicator.style.width = `${btnRect.width}px`;
+  indicator.style.left = `${btnRect.left - navRect.left}px`;
+}
+
+window.addEventListener("resize", () => {
+  positionTabIndicator(document.querySelector(".tab-btn.active"));
+});
 
 document.querySelectorAll(".tab-btn").forEach(button => {
   button.addEventListener("click", () => switchTab(button.dataset.tab));
@@ -1105,3 +1415,9 @@ showScreen("screenLogin");
 });
 
 setInterval(tickTimers, 1000);
+
+// Grafik daya & partikel ambient: dekorasi/visual, jalan dari awal terlepas
+// dari status BLE (lihat komentar masing-masing fungsi untuk alasannya).
+startPowerWave();
+initParticles();
+positionTabIndicator(document.querySelector(".tab-btn.active"));

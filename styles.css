@@ -101,6 +101,16 @@ body {
 @keyframes drift2 { to { transform: translate(-7vw, 6vh) scale(1.08); } }
 @keyframes drift3 { to { transform: translate(5vw, -6vh) scale(1.15); } }
 
+/* Titik-titik melayang tipis di atas bola cahaya — digambar lewat JS (lihat particles* di app.js),
+   dimatikan otomatis kalau prefers-reduced-motion atau tab sedang tidak terlihat. */
+.particle-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .5;
+}
+
 .screen, .app { position: relative; z-index: 1; }
 
 button, input { font: inherit; }
@@ -123,6 +133,7 @@ button:disabled {
 
 @media (prefers-reduced-motion: reduce) {
   .bg-orbs span { animation: none !important; }
+  .particle-canvas { display: none; }
 }
 
 .app {
@@ -272,7 +283,7 @@ button:disabled {
 
 .relay-card {
   position: relative;
-  min-height: 154px;
+  min-height: 204px;
   padding: 16px;
   border-radius: 18px;
   background: var(--glass);
@@ -289,12 +300,12 @@ button:disabled {
 .relay-card.active {
   border-color: var(--glass-line-strong);
   background: linear-gradient(145deg, rgba(0, 63, 136, .55), rgba(5, 42, 92, .42));
-  box-shadow: var(--glass-shadow), 0 0 0 1px rgba(255, 213, 0, .06);
+  box-shadow: var(--glass-shadow), 0 0 0 1px rgba(255, 213, 0, .1), 0 0 26px rgba(255, 213, 0, .14);
 }
 
 .relay-card.master {
   grid-column: 1 / -1;
-  min-height: 136px;
+  min-height: 186px;
   background: linear-gradient(145deg, rgba(11, 45, 91, .48), var(--glass));
   border-color: rgba(255, 213, 0, .3);
 }
@@ -347,6 +358,63 @@ button:disabled {
   background: var(--on);
   box-shadow: 0 0 10px rgba(255, 213, 0, .65);
 }
+
+/* "Beban saat ini" per relay: cincin + angka watt. Persennya relatif terhadap RELAY_MAX_WATT_REF
+   di app.js (referensi 2200 W, setara MCB/stopkontak rumah tangga standar) — bukan sensor nyata,
+   cuma supaya cincinnya punya skala yang masuk akal. Dihitung dari watt yang dikonfigurasi user
+   di tab Emisi × status ON/OFF relay yang nyata dari ESP32. */
+.relay-load {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.relay-ring {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  transform: rotate(-90deg);
+}
+
+.relay-ring circle {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.relay-ring .ring-track { stroke: var(--glass-line-strong); }
+
+.relay-ring .ring-fill {
+  stroke: var(--muted);
+  stroke-dasharray: 100.5;
+  stroke-dashoffset: 100.5;
+  transition: stroke-dashoffset var(--med) var(--ease-spring), stroke var(--med) var(--ease);
+}
+
+.relay-card.active .relay-ring .ring-fill { stroke: var(--accent); }
+
+.relay-watt { display: grid; gap: 1px; }
+
+.relay-watt strong { font-size: 15px; font-weight: 800; color: var(--text); }
+
+.relay-watt span {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* Kilas cincin sesaat ketika ESP32 mengonfirmasi relay berubah jadi ON — bukan dekorasi acak,
+   nandain "perintah kamu benar-benar sampai ke perangkat". Otomatis mati oleh reduced-motion
+   lewat aturan global di bawah. */
+@keyframes relayConfirm {
+  0% { box-shadow: var(--glass-shadow), 0 0 0 0 rgba(255, 213, 0, .38); }
+  70% { box-shadow: var(--glass-shadow), 0 0 0 16px rgba(255, 213, 0, 0); }
+  100% { box-shadow: var(--glass-shadow), 0 0 0 0 rgba(255, 213, 0, 0); }
+}
+
+.relay-card.confirm { animation: relayConfirm .65s var(--ease) 1; }
 
 .switch {
   position: relative;
@@ -720,6 +788,61 @@ summary::-webkit-details-marker { display: none; }
 .emisi-stat span { font-size: 11px; color: var(--muted); }
 .emisi-stat strong { font-size: 19px; color: var(--accent-soft); }
 
+/* Panel grafik gelombang daya (tab Emisi). Sumbernya total watt relay yang sedang ON
+   (state.energy.watt × state.relays asli dari ESP32) — bukan sensor arus. Dihaluskan lewat
+   requestAnimationFrame di app.js (lihat powerWave*) supaya pergerakannya terasa hidup, tapi
+   datanya tetap jujur terhadap apa yang benar-benar diketahui aplikasi. */
+.power-wave-panel {
+  padding: 14px 14px 10px;
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, rgba(11, 45, 91, .42), rgba(7, 22, 43, .34));
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--glass-shadow);
+}
+
+#powerWaveCanvas { display: block; width: 100%; height: 120px; }
+
+/* Baris proporsi per-soket: nama+persen di atas, bar tipis di bawah. Persen = watt relay yang
+   ON dibagi total watt semua relay yang ON saat itu (renderPower() di app.js). */
+.proportion-row {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-line);
+  border-radius: 11px;
+  background: rgba(6, 20, 42, .4);
+  backdrop-filter: blur(10px);
+}
+
+.proportion-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.proportion-head strong { color: var(--text); font-weight: 700; }
+
+.proportion-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--glass-line-strong);
+  overflow: hidden;
+}
+
+.proportion-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue), var(--accent));
+  width: 0%;
+  transition: width var(--med) var(--ease-spring);
+}
+
+.power-proportion-list .empty-hint {
+  padding: 14px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  border: 1px dashed var(--glass-line);
+  border-radius: 11px;
+}
+
 .save-btn.danger { background: var(--red); color: var(--text); }
 
 .countdown-alert {
@@ -946,7 +1069,28 @@ summary::-webkit-details-marker { display: none; }
   z-index: 90;
 }
 
+/* Pil yang meluncur di belakang tab aktif — satu elemen, digeser (bukan tiap tombol ganti
+   background sendiri-sendiri) supaya perpindahannya terasa "mengalir". Posisi & lebarnya
+   diukur langsung dari tombol aktif lewat getBoundingClientRect() di positionTabIndicator()
+   (app.js) — bukan persentase, supaya nggak tergantung cara .tabbar (grid) membagi kolom.
+   width/left di bawah cuma nilai awal sebelum JS sempat mengukur. */
+.tab-indicator {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  width: calc((100% - 16px) / 5);
+  border-radius: 14px;
+  background: rgba(0, 63, 136, .55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 4px 14px rgba(0, 63, 136, .35);
+  transition: left var(--med) var(--ease-spring), width var(--med) var(--ease-spring);
+  z-index: 0;
+  pointer-events: none;
+}
+
 .tab-btn {
+  position: relative;
+  z-index: 1;
   display: grid;
   justify-items: center;
   gap: 4px;
@@ -957,11 +1101,8 @@ summary::-webkit-details-marker { display: none; }
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: .02em;
-  transition: color var(--fast) var(--ease), background var(--fast) var(--ease),
-              transform var(--fast) var(--ease-spring);
+  transition: color var(--fast) var(--ease), transform var(--fast) var(--ease-spring);
 }
-
-.tab-btn.active { transform: translateY(-2px); }
 
 .tab-btn svg {
   width: 21px;
@@ -975,8 +1116,7 @@ summary::-webkit-details-marker { display: none; }
 
 .tab-btn.active {
   color: var(--accent);
-  background: rgba(0, 63, 136, .55);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 4px 14px rgba(0, 63, 136, .35);
+  transform: translateY(-2px);
 }
 
 .tab-btn .tab-dot {
@@ -991,6 +1131,10 @@ summary::-webkit-details-marker { display: none; }
 }
 
 .tab-btn .tab-dot.show { display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-indicator { transition: none; }
+}
 
 /* ============================================================
    TAB 4 — INFORMASI USER

@@ -21,6 +21,7 @@
 <body>
 
 <div class="bg-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
+<canvas id="particleCanvas" class="particle-canvas" aria-hidden="true"></canvas>
 
 <!-- ============================================================
      PAGE 1 — LOGIN
@@ -172,6 +173,20 @@
       </section>
 
       <div class="section-title">
+        <h2>Grafik daya real-time</h2>
+        <span id="powerNowLabel">0 W aktif</span>
+      </div>
+      <section class="power-wave-panel">
+        <canvas id="powerWaveCanvas" role="img" aria-label="Grafik beban daya total dari relay yang menyala, diperbarui langsung"></canvas>
+      </section>
+
+      <div class="section-title">
+        <h2>Proporsi daya per-soket</h2>
+        <span>Dari total beban yang sedang aktif</span>
+      </div>
+      <section class="feature-list power-proportion-list" id="powerProportionList"></section>
+
+      <div class="section-title">
         <h2>Per stopkontak</h2>
         <span>Sejak data terakhir direset</span>
       </div>
@@ -310,6 +325,7 @@
 
   <!-- ---------- NAVIGASI BAWAH ---------- -->
   <nav class="tabbar" role="tablist" aria-label="Navigasi aplikasi">
+    <span class="tab-indicator" id="tabIndicator" aria-hidden="true"></span>
     <button class="tab-btn active" id="navControl" data-tab="tabControl" role="tab" aria-controls="tabControl" aria-selected="true">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="5" width="18" height="14" rx="3"/>
